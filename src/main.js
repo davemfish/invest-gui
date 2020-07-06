@@ -1,20 +1,43 @@
 const fs = require('fs')
 const path = require('path')
 const spawn = require('child_process').spawn;
-const { app, BrowserWindow, screen } = require('electron')
+const { app, BrowserWindow, dialog,
+        Menu, MenuItem, screen } = require('electron')
 const fetch = require('node-fetch')
 const { getLogger } = require('./logger')
+
+const logger = getLogger('main')
 
 const isDevMode = function() {
   return process.argv[2] == '--dev'
 };
-
-const logger = getLogger('main')
-
 if (isDevMode()) {
   // load the '.env' file from the project root
   const dotenv = require('dotenv');
   dotenv.config();
+}
+
+function buildMenu() {
+  const aboutMenu = new MenuItem({
+    label: 'About',
+    submenu: [
+      {
+        label: 'About InVEST Workbench',
+        click: async () => {
+          dialog.showMessageBox({
+            message: "About InVEST Workbench \n",
+            detail: `version ${app.getVersion()}`,
+            type: 'info',
+            buttons: ['OK']
+          })
+        }
+      }
+    ]
+  })
+
+  const defaultMenu = Menu.getApplicationMenu()
+  defaultMenu.append(aboutMenu)
+  Menu.setApplicationMenu(defaultMenu)
 }
 
 // Binding to the invest server binary:
@@ -67,6 +90,8 @@ const createWindow = async () => {
 
   // and load the index.html of the app.
   mainWindow.loadURL(`file://${__dirname}/index.html`);
+
+  buildMenu()
 
   // Open the DevTools.
   if (isDevMode()) {
