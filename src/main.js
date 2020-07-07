@@ -18,7 +18,7 @@ if (isDevMode()) {
 }
 
 function buildMenu() {
-  const aboutMenu = new MenuItem({
+  const menuAbout = new MenuItem({
     label: 'About',
     submenu: [
       {
@@ -35,9 +35,13 @@ function buildMenu() {
     ]
   })
 
-  const defaultMenu = Menu.getApplicationMenu()
-  defaultMenu.append(aboutMenu)
-  Menu.setApplicationMenu(defaultMenu)
+  const menu = Menu.getApplicationMenu()
+  console.log(menu)
+  console.log(menu.getMenuItemById(2))
+  // menu.items.pop()  // discard the default Help menu
+  // console.log(menu)
+  menu.append(menuAbout)
+  Menu.setApplicationMenu(menu)
 }
 
 // Binding to the invest server binary:
