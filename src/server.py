@@ -203,5 +203,6 @@ def save_to_python():
     return 'python script saved'
 
 if __name__ == '__main__':
-    print('Running Flask App')
+    # The main node process expects to receive this formatted string
+    LOGGER.info(f'running invest version: {natcap.invest.cli.__version__}')
     app.run()

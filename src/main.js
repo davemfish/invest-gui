@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const { spawn } = require('child_process')
-const { app, BrowserWindow, dialog, ipcMain
+const { app, BrowserWindow, dialog, ipcMain,
         Menu, MenuItem, screen } = require('electron')
 const fetch = require('node-fetch')
 const { getLogger } = require('./logger')
@@ -70,7 +70,8 @@ const createWindow = async () => {
     event.reply('variable-reply', mainProcessVars)
   })
 
-  createPythonFlaskProcess(binaries.server);
+  const investVersion = await createPythonFlaskProcess(binaries.server);
+  console.log(investVersion)
 
   // Create the browser window.
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
@@ -118,11 +119,14 @@ function createPythonFlaskProcess(serverExe) {
     const pythonServerProcess = spawn(path.basename(serverExe), {
         env: {PATH: path.dirname(serverExe)}
       });
-
+    let investVersion;
     logger.debug('Started python process as PID ' + pythonServerProcess.pid);
-    logger.debug(serverExe)
     pythonServerProcess.stdout.on('data', (data) => {
-      logger.debug(`${data}`);
+      let msg = `${data}`
+      logger.debug(msg);
+      if (msg.startsWith('running invest version: ')) {
+        investVersion = msg.split(': ')[1]
+      }
     });
     pythonServerProcess.stderr.on('data', (data) => {
       logger.debug(`${data}`);
@@ -135,9 +139,9 @@ function createPythonFlaskProcess(serverExe) {
       logger.debug(code);
       logger.debug('Child process terminated due to signal ' + signal);
     });
-  } else {
-    logger.debug('no existing invest installations found')
+    return investVersion
   }
+  logger.debug('no existing invest installations found')
 }
 
 function shutdownPythonProcess() {
