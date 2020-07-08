@@ -1,7 +1,7 @@
 const fs = require('fs')
 const path = require('path')
 const { spawn } = require('child_process')
-const { app, BrowserWindow, dialog,
+const { app, BrowserWindow, dialog, ipcMain
         Menu, MenuItem, screen } = require('electron')
 const fetch = require('node-fetch')
 const { getLogger } = require('./logger')
@@ -9,39 +9,47 @@ const { menuTemplate } = require('./menubar')
 
 const logger = getLogger('main')
 
-const isDevMode = function() {
-  return process.argv[2] == '--dev'
-};
-if (isDevMode()) {
+const isDevMode = process.argv[2] == '--dev'
+if (isDevMode) {
   // load the '.env' file from the project root
   const dotenv = require('dotenv');
   dotenv.config();
 }
 
-// Binding to the invest server binary:
-let serverExe;
+function findInvestBinaries() {
 
-// A) look for a local registry of available invest installations
-const investRegistryPath = path.join(
-  app.getPath('userData'), 'invest_registry.json')
-if (fs.existsSync(investRegistryPath)) {
-  const investRegistry = JSON.parse(fs.readFileSync(investRegistryPath))
-  const activeVersion = investRegistry['active']
-  serverExe = investRegistry['registry'][activeVersion]['server']
+  return new Promise(resolve => {
+    // Binding to the invest server binary:
+    let serverExe;
+    let investExe;
 
-// B) check for dev mode and an environment variable from dotenv
-} else if (isDevMode()) {
-  serverExe = process.env.SERVER
+    // A) look for a local registry of available invest installations
+    const investRegistryPath = path.join(
+      app.getPath('userData'), 'invest_registry.json')
+    if (fs.existsSync(investRegistryPath)) {
+      const investRegistry = JSON.parse(fs.readFileSync(investRegistryPath))
+      const activeVersion = investRegistry['active']
+      serverExe = investRegistry['registry'][activeVersion]['server']
+      investExe = investRegistry['registry'][activeVersion]['invest']
 
-// C) point to binaries included in this app's installation.
-} else {
-  const binary = (process.platform === 'win32') ? 'server.exe' : 'server'
-  // serverExe = path.join(__dirname, 'invest', binary)
-  logger.debug(process.resourcesPath)
-  serverExe = path.join(
-    process.resourcesPath, 'app.asar.unpacked', 'build', 'invest', binary)
-  logger.debug(serverExe)
+    // B) check for dev mode and an environment variable from dotenv
+    } else if (isDevMode) {
+      serverExe = process.env.SERVER
+      investExe = process.env.INVEST
+
+    // C) point to binaries included in this app's installation.
+    } else {
+      const ext = (process.platform === 'win32') ? '.exe' : ''
+      binaryPath = path.join(
+        process.resourcesPath, 'app.asar.unpacked', 'build', 'invest') 
+      serverExe = path.join(binaryPath, 'server' + ext)
+      investExe = path.join(binaryPath, 'invest' + ext)
+      console.log(serverExe)
+    }
+    resolve({ invest: investExe, server: serverExe })
+  })
 }
+
 
 let PORT = (process.env.PORT || '5000').trim();
 
@@ -52,8 +60,18 @@ const createWindow = async () => {
   /** Much of this is electron app boilerplate, but here is also
   * where we fire up the python flask server.
   */
-  createPythonFlaskProcess();
-  
+
+  // The main process needs to know the location of the invest server binary
+  // The renderer process needs the invest cli binary. We can find them
+  // together here and pass data to the renderer upon request.
+  const binaries = await findInvestBinaries()
+  const mainProcessVars = { investExe: binaries.invest }
+  ipcMain.on('variable-request', (event, arg) => {
+    event.reply('variable-reply', mainProcessVars)
+  })
+
+  createPythonFlaskProcess(binaries.server);
+
   // Create the browser window.
   const { width, height } = screen.getPrimaryDisplay().workAreaSize
   logger.debug(width + ' ' + height)
@@ -73,12 +91,14 @@ const createWindow = async () => {
 
 
   // Open the DevTools.
-  if (isDevMode()) {
-    const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
-    await installExtension(REACT_DEVELOPER_TOOLS);
-    // enableLiveReload({ strategy: 'react-hmr' });
-    mainWindow.webContents.openDevTools();
-  }
+  mainWindow.webContents.on('did-frame-finish-load', async () => {
+    if (isDevMode) {
+      const { default: installExtension, REACT_DEVELOPER_TOOLS } = require('electron-devtools-installer');
+      await installExtension(REACT_DEVELOPER_TOOLS);
+      // enableLiveReload({ strategy: 'react-hmr' });
+      mainWindow.webContents.openDevTools();
+    }
+  })
 
   // Emitted when the window is closed.
   mainWindow.on('closed', () => {
@@ -89,7 +109,7 @@ const createWindow = async () => {
   });
 };
 
-function createPythonFlaskProcess() {
+function createPythonFlaskProcess(serverExe) {
   /** Spawn a child process running the Python Flask server.*/
   if (serverExe) {
     // The most reliable, cross-platform way to make sure spawn
@@ -136,6 +156,14 @@ function shutdownPythonProcess() {
 // Some APIs can only be used after this event occurs.
 app.on('ready', createWindow);
 
+app.on('activate', () => {
+  // On OS X it's common to re-create a window in the app when the
+  // dock icon is clicked and there are no other windows open.
+  if (mainWindow === null) {
+    createWindow();
+  }
+});
+
 // Quit when all windows are closed.
 app.on('window-all-closed', async () => {
   // On OS X it is common for applications and their menu bar
@@ -145,14 +173,6 @@ app.on('window-all-closed', async () => {
     // process dies before flask has time to kill its server.
     await shutdownPythonProcess();
     app.quit()
-  }
-});
-
-app.on('activate', () => {
-  // On OS X it's common to re-create a window in the app when the
-  // dock icon is clicked and there are no other windows open.
-  if (mainWindow === null) {
-    createWindow();
   }
 });
 
