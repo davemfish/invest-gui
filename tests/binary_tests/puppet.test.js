@@ -89,16 +89,16 @@ afterAll(async () => {
   // I thought this business would be necessary to kill the spawned shell
   // process running electron - since that's how we kill a similar spawned
   // subprocess in the app, but actually it is not.
-  // if (electronProcess.pid) {
-  //   console.log(electronProcess.pid)
-  //   if (process.platform !== 'win32') {
-  //     process.kill(-electronProcess.pid, 'SIGTERM');
-  //   } else {
-  //     exec(`taskkill /pid ${electronProcess.pid} /t /f`)
-  //   }
-  // }
-  const wasKilled = electronProcess.kill();
-  console.log(`electron process was killed: ${wasKilled}`);
+  if (electronProcess.pid) {
+    console.log(electronProcess.pid)
+    if (process.platform !== 'win32') {
+      process.kill(-electronProcess.pid, 'SIGTERM');
+    } else {
+      exec(`taskkill /pid ${electronProcess.pid} /t /f`)
+    }
+  }
+  // const wasKilled = electronProcess.kill();
+  // console.log(`electron process was killed: ${wasKilled}`);
 });
 
 test('Run a real invest model', async () => {
