@@ -23,6 +23,13 @@
         "to": "invest"
       }
     ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "davemfish",
+        "repo": "invest-workbench"
+      }
+    ],
     "appId": "NaturalCapitalProject.Invest.Workbench",
     "productName": "InVEST Workbench",
     "artifactName": "invest-workbench_${os}_${arch}_${env.VERSION}.${ext}",
@@ -70,6 +77,7 @@
   "license": "MIT",
   "dependencies": {
     "cross-env": "^5.2.1",
+    "electron-updater": "^4.3.8",
     "esm": "^3.2.25",
     "glob": "^7.1.6",
     "localforage": "^1.9.0",
