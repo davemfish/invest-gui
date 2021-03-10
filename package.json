@@ -20,7 +20,7 @@
     "extraResources": [
       {
         "from": "build/invest",
-        "to": "invest"
+        "to": "invest-v3.x"
       }
     ],
     "publish": [
