@@ -78,6 +78,9 @@ function build() {
  * electron-builder will read this .env file and use the string in
  * the artifactName.
  */
+ // TODO: this won't work well with a release workflow that relies on
+ // github release objects to create the tag on github when we click "Publish"
+ // the tag needs to be made locally first.
 function makeVersionString() {
   const version = execFileSync('git', ['describe', '--tags']);
   fs.writeFileSync(ELECTRON_BUILDER_ENV, `VERSION=${version}`);
